@@ -89,6 +89,12 @@ class Bird(pg.sprite.Sprite):
         引数2 screen：画面Surface
         """
         sum_mv = [0, 0]
+        current_speed = self.speed
+
+        # 左Shiftキーが押されている場合、スピードを2倍に
+        if key_lst[pg.K_LSHIFT]:
+            current_speed = 20
+        
         for k, mv in __class__.delta.items():
             if key_lst[k]:
                 sum_mv[0] += mv[0]
