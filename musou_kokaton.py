@@ -5,7 +5,6 @@ import sys
 import time
 import pygame as pg
 
-
 WIDTH = 1100  # ゲームウィンドウの幅
 HEIGHT = 650  # ゲームウィンドウの高さ
 os.chdir(os.path.dirname(os.path.abspath(__file__)))
@@ -242,6 +241,45 @@ class Score:
         screen.blit(self.image, self.rect)
 
 
+class EMP:
+    """
+    EMP（電磁パルス）に関するクラス
+    """
+    def __init__(self, emys: pg.sprite.Group, bombs: pg.sprite.Group, screen: pg.Surface): # コンストラクタ
+        """
+        引数：
+        emys：Enemyインスタンスのグループ
+        bombs：Bombインスタンスのグループ
+        screen：画面Surface
+        """
+        self.emys = emys # 敵機グループ
+        self.bombs = bombs # 爆弾グループ
+        self.screen = screen # 画面Surface
+
+    def activate(self, score: Score): # メソッド
+        """
+        EMPを発動する
+        引数：
+        score：スコアクラスのインスタンス
+        """
+        if score.value >= 20:  # スコアが20以上の場合のみ発動可能
+            score.value -= 20  # スコアを20消費
+            # 画面全体に黄色の矩形を表示（0.05秒）
+            overlay = pg.Surface((WIDTH, HEIGHT), pg.SRCALPHA) # 透明なSurface
+            overlay.fill((255, 255, 0, 100))  # 半透明の黄色
+            self.screen.blit(overlay, (0, 0)) # 画面に表示
+            pg.display.update() # 画面更新
+            time.sleep(0.05) # 0.05秒待機
+            # 敵機を無効化
+            for emy in self.emys: # 敵機グループの各インスタンスに対して
+                emy.interval = float('inf')  # 爆弾投下不可
+                emy.image = pg.transform.laplacian(emy.image)  # ラプラシアンフィルタ適用
+            # 爆弾を無効化
+            for bomb in self.bombs: # 爆弾グループの各インスタンスに対して
+                bomb.speed //= 2  # 速度を半減
+                bomb.kill()  # 爆弾を即時消去
+
+
 def main():
     pg.display.set_caption("真！こうかとん無双")
     screen = pg.display.set_mode((WIDTH, HEIGHT))
@@ -253,6 +291,7 @@ def main():
     beams = pg.sprite.Group()
     exps = pg.sprite.Group()
     emys = pg.sprite.Group()
+    emp = EMP(emys, bombs, screen)  # EMPインスタンスの生成
 
     tmr = 0
     clock = pg.time.Clock()
@@ -261,32 +300,35 @@ def main():
         for event in pg.event.get():
             if event.type == pg.QUIT:
                 return 0
-            if event.type == pg.KEYDOWN and event.key == pg.K_SPACE:
-                beams.add(Beam(bird))
+            if event.type == pg.KEYDOWN: # キー押下時の処理
+                if event.key == pg.K_SPACE: # スペースキー押
+                    beams.add(Beam(bird))
+                if event.key == pg.K_e:  # 「E」キー押下でEMP発動
+                    emp.activate(score) # EMP発動
+
         screen.blit(bg_img, [0, 0])
 
-        if tmr%200 == 0:  # 200フレームに1回，敵機を出現させる
-            emys.add(Enemy())
+        if tmr % 200 == 0:  # 200フレームに1回，敵機を出現させる
+            emys.add(Enemy()) # 敵機を生成
 
         for emy in emys:
-            if emy.state == "stop" and tmr%emy.interval == 0:
-                # 敵機が停止状態に入ったら，intervalに応じて爆弾投下
+            if emy.state == "stop" and tmr % emy.interval == 0: # 敵機が停止状態で，爆弾投下インターバルに達した場合
                 bombs.add(Bomb(emy, bird))
 
-        for emy in pg.sprite.groupcollide(emys, beams, True, True).keys():  # ビームと衝突した敵機リスト
-            exps.add(Explosion(emy, 100))  # 爆発エフェクト
-            score.value += 10  # 10点アップ
-            bird.change_img(6, screen)  # こうかとん喜びエフェクト
+        for emy in pg.sprite.groupcollide(emys, beams, True, True).keys(): # 敵機とビームの衝突判定
+            exps.add(Explosion(emy, 100)) # 爆発エフェクトを生成
+            score.value += 10 # スコアを10加算
+            bird.change_img(6, screen) # 敵機撃破画像に変更
 
-        for bomb in pg.sprite.groupcollide(bombs, beams, True, True).keys():  # ビームと衝突した爆弾リスト
-            exps.add(Explosion(bomb, 50))  # 爆発エフェクト
-            score.value += 1  # 1点アップ
+        for bomb in pg.sprite.groupcollide(bombs, beams, True, True).keys(): # 爆弾とビームの衝突判定
+            exps.add(Explosion(bomb, 50)) # 爆発エフェクトを生成
+            score.value += 1 # スコアを1加算
 
-        for bomb in pg.sprite.spritecollide(bird, bombs, True):  # こうかとんと衝突した爆弾リスト
-            bird.change_img(8, screen)  # こうかとん悲しみエフェクト
-            score.update(screen)
-            pg.display.update()
-            time.sleep(2)
+        for bomb in pg.sprite.spritecollide(bird, bombs, True):
+            bird.change_img(8, screen) # 爆発画像に変更
+            score.update(screen) # スコアを画面に表示
+            pg.display.update() # 画面更新
+            time.sleep(2) # 2秒待機
             return
 
         bird.update(key_lst, screen)
@@ -302,7 +344,6 @@ def main():
         pg.display.update()
         tmr += 1
         clock.tick(50)
-
 
 if __name__ == "__main__":
     pg.init()
