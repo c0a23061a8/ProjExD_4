@@ -223,6 +223,23 @@ class Enemy(pg.sprite.Sprite):
         self.rect.move_ip(self.vx, self.vy)
 
 
+class Gravity(pg.sprite.Sprite):
+    """
+    重力場に関するクラス
+    """
+    def __init__(self,life):
+        super().__init__()
+        self.image = pg.Surface((1100,650))
+        self.rect = self.image.get_rect()
+        pg.draw.rect(self.image,(0, 0, 0),(0, 0, 1100, 650))
+        self.image.set_alpha(128)
+        self.life = life
+
+    def update(self):
+        self.life -= 1
+        if self.life <= 0:
+            self.kill()
+
 class Score:
     """
     打ち落とした爆弾，敵機の数をスコアとして表示するクラス
@@ -253,6 +270,7 @@ def main():
     beams = pg.sprite.Group()
     exps = pg.sprite.Group()
     emys = pg.sprite.Group()
+    gravitys = pg.sprite.Group()
 
     tmr = 0
     clock = pg.time.Clock()
@@ -263,6 +281,10 @@ def main():
                 return 0
             if event.type == pg.KEYDOWN and event.key == pg.K_SPACE:
                 beams.add(Beam(bird))
+            # if key_lst[pg.K_RETURN] and score.value >= 0:
+            if key_lst[pg.K_RETURN]:
+                gravitys.add(Gravity(400))
+                score.value -= 1
         screen.blit(bg_img, [0, 0])
 
         if tmr%200 == 0:  # 200フレームに1回，敵機を出現させる
@@ -276,6 +298,16 @@ def main():
         for emy in pg.sprite.groupcollide(emys, beams, True, True).keys():  # ビームと衝突した敵機リスト
             exps.add(Explosion(emy, 100))  # 爆発エフェクト
             score.value += 10  # 10点アップ
+            bird.change_img(6, screen)  # こうかとん喜びエフェクト
+
+        for emy in pg.sprite.groupcollide(emys, gravitys, True, False).keys():  # 重力場と衝突した敵機のリスト
+            exps.add(Explosion(emy, 100))  # 爆発エフェクト
+            score.value += 10  # 10点アップ
+            bird.change_img(6, screen)  # こうかとん喜びエフェクト
+
+        for bomb in pg.sprite.groupcollide(bombs, gravitys, True, False).keys():  # 重力場と衝突した敵機のリスト
+            exps.add(Explosion(bomb, 100))  # 爆発エフェクト
+            score.value += 1  # 1点アップ
             bird.change_img(6, screen)  # こうかとん喜びエフェクト
 
         for bomb in pg.sprite.groupcollide(bombs, beams, True, True).keys():  # ビームと衝突した爆弾リスト
@@ -298,6 +330,8 @@ def main():
         bombs.draw(screen)
         exps.update()
         exps.draw(screen)
+        gravitys.update()
+        gravitys.draw(screen)
         score.update(screen)
         pg.display.update()
         tmr += 1
