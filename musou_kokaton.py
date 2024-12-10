@@ -435,7 +435,7 @@ def main():
 
         for emy in pg.sprite.groupcollide(emys, beams, True, True).keys(): # 敵機とビームの衝突判定
             exps.add(Explosion(emy, 100)) # 爆発エフェクトを生成
-            score.value += 10 # スコアを10加算
+            score.value += 100 # スコアを10加算
             bird.change_img(6, screen) # 敵機撃破画像に変更
         for emy in pg.sprite.groupcollide(emys, gravitys, True, False).keys():  # 重力場と衝突した敵機のリスト
             exps.add(Explosion(emy, 100))  # 爆発エフェクト
