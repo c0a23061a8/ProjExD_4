@@ -241,6 +241,23 @@ class Enemy(pg.sprite.Sprite):
         self.rect.move_ip(self.vx, self.vy)
 
 
+class Gravity(pg.sprite.Sprite):
+    """
+    重力場に関するクラス
+    """
+    def __init__(self,life):
+        super().__init__()
+        self.image = pg.Surface((1100,650))
+        self.rect = self.image.get_rect()
+        pg.draw.rect(self.image,(0, 0, 0),(0, 0, 1100, 650))
+        self.image.set_alpha(128)
+        self.life = life
+
+    def update(self):
+        self.life -= 1
+        if self.life <= 0:
+            self.kill()
+
 class Score:
     """
     打ち落とした爆弾，敵機の数をスコアとして表示するクラス
@@ -369,8 +386,8 @@ def main():
     beams = pg.sprite.Group()
     exps = pg.sprite.Group()
     emys = pg.sprite.Group()
+    gravitys = pg.sprite.Group()  # 重力波のグループ
     emp = EMP(emys, bombs, screen)  # EMPインスタンスの生成
-
     shields = pg.sprite.Group()  # 防御壁グループ
 
     tmr = 0
@@ -402,7 +419,11 @@ def main():
             if event.type == pg.KEYDOWN and event.key == pg.K_s:
                 if score.value >= 50 and len(shields) == 0:  # スコア50以上、かつ防御壁が存在しない場合
                     score.value -= 50  # スコアを消費
-                    shields.add(Shield(bird, 400))  # 防御壁を生成（400フレーム）
+                    shields.add(Shield(bird, 400))  # 防御壁を生成（400フレーム)
+
+            if key_lst[pg.K_RETURN] and score.value >= 200:
+                gravitys.add(Gravity(400))  # 重量場を生成
+                score.value -= 1
         screen.blit(bg_img, [0, 0])
 
         if tmr % 200 == 0:  # 200フレームに1回，敵機を出現させる
@@ -416,15 +437,24 @@ def main():
             exps.add(Explosion(emy, 100)) # 爆発エフェクトを生成
             score.value += 10 # スコアを10加算
             bird.change_img(6, screen) # 敵機撃破画像に変更
+        for emy in pg.sprite.groupcollide(emys, gravitys, True, False).keys():  # 重力場と衝突した敵機のリスト
+            exps.add(Explosion(emy, 100))  # 爆発エフェクト
+            score.value += 10  # 10点アップ
+            bird.change_img(6, screen)  # こうかとん喜びエフェクト
 
-        for bomb in pg.sprite.groupcollide(bombs, beams, True, True).keys(): # 爆弾とビームの衝突判定
-            exps.add(Explosion(bomb, 50)) # 爆発エフェクトを生成
-            score.value += 1 # スコアを1加算
+        for bomb in pg.sprite.groupcollide(bombs, gravitys, True, False).keys():  # 重力場と衝突した敵機のリスト
+            exps.add(Explosion(bomb, 100))  # 爆発エフェクト
+            score.value += 1  # 1点アップ
+            bird.change_img(6, screen)  # こうかとん喜びエフェクト
+
+        for bomb in pg.sprite.groupcollide(bombs, beams, True, True).keys():  # ビームと衝突した爆弾リスト
+            exps.add(Explosion(bomb, 50))  # 爆発エフェクト
+            score.value += 1  # 1点アップ
 
         for bomb in pg.sprite.spritecollide(bird, bombs, True):  # こうかとんと衝突した爆弾リスト
             if bird.state == "hyper":              #こうかとんがハイパー状態なら
                 exps.add(Explosion(bomb, 50))      #死なないで、爆発エフェクト付与
-                score.value += 1                   #スコア1アップ
+                score.value += 1                   #スコア1加算
             else: 
                 bird.change_img(8, screen)  # こうかとん悲しみエフェクト
                 score.update(screen)
@@ -452,6 +482,8 @@ def main():
         bombs.draw(screen)
         exps.update()
         exps.draw(screen)
+        gravitys.update()
+        gravitys.draw(screen)
         score.update(screen)
         shields.update()
         shields.draw(screen)
