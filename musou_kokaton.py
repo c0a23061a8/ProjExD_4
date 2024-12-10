@@ -141,30 +141,32 @@ class Beam(pg.sprite.Sprite):
     """
     ビームに関するクラス
     """
-    def __init__(self, bird: Bird):
+    def __init__(self, bird: Bird, angle0: float = 0):
         """
         ビーム画像Surfaceを生成する
-        引数 bird：ビームを放つこうかとん
+        引数:
+        - bird: ビームを放つこうかとん
+        - angle0: 回転角度（デフォルトは0）
         """
         super().__init__()
         self.vx, self.vy = bird.dire
-        angle = math.degrees(math.atan2(-self.vy, self.vx))
+        angle = math.degrees(math.atan2(-self.vy, self.vx)) + angle0
         self.image = pg.transform.rotozoom(pg.image.load(f"fig/beam.png"), angle, 1.0)
         self.vx = math.cos(math.radians(angle))
         self.vy = -math.sin(math.radians(angle))
         self.rect = self.image.get_rect()
-        self.rect.centery = bird.rect.centery+bird.rect.height*self.vy
-        self.rect.centerx = bird.rect.centerx+bird.rect.width*self.vx
+        self.rect.centery = bird.rect.centery + bird.rect.height * self.vy
+        self.rect.centerx = bird.rect.centerx + bird.rect.width * self.vx
         self.speed = 10
 
     def update(self):
         """
         ビームを速度ベクトルself.vx, self.vyに基づき移動させる
-        引数 screen：画面Surface
         """
-        self.rect.move_ip(self.speed*self.vx, self.speed*self.vy)
+        self.rect.move_ip(self.speed * self.vx, self.speed * self.vy)
         if check_bound(self.rect) != (True, True):
             self.kill()
+
 
 
 class Explosion(pg.sprite.Sprite):
@@ -241,6 +243,30 @@ class Score:
         self.image = self.font.render(f"Score: {self.value}", 0, self.color)
         screen.blit(self.image, self.rect)
 
+class NeoBeam:
+    """
+    複数方向にビームを発射するクラス
+    """
+    def __init__(self, bird: Bird, num: int):
+        """
+        NeoBeamを生成する
+        引数:
+        - bird: こうかとん
+        - num: ビームの数
+        """
+        self.bird = bird
+        self.num = num
+
+    def gen_beams(self) -> list[Beam]:
+        """
+        ビームを複数生成してリストで返す
+        """
+        step = 100 // (self.num - 1)  # ビーム間の角度ステップを計算
+        angles = range(-50, 51, step)  # -50度から+50度までの角度を生成
+        beams = [Beam(self.bird, angle) for angle in angles]
+        return beams
+
+
 
 def main():
     pg.display.set_caption("真！こうかとん無双")
@@ -254,6 +280,7 @@ def main():
     exps = pg.sprite.Group()
     emys = pg.sprite.Group()
 
+
     tmr = 0
     clock = pg.time.Clock()
     while True:
@@ -263,6 +290,12 @@ def main():
                 return 0
             if event.type == pg.KEYDOWN and event.key == pg.K_SPACE:
                 beams.add(Beam(bird))
+            if event.type == pg.KEYDOWN and event.key == pg.K_SPACE and key_lst[pg.K_LSHIFT]:
+                # 左Shiftキーを押しながらスペースキーを押下
+                num_beams = 5  # 発射するビームの数（例: 5）
+                neobeam = NeoBeam(bird, num_beams)
+                beams.add(*neobeam.gen_beams())  # Beamグループに追加
+
         screen.blit(bg_img, [0, 0])
 
         if tmr%200 == 0:  # 200フレームに1回，敵機を出現させる
